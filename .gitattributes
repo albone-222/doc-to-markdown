@@ -1,0 +1,12 @@
+# Все текстовые файлы этого репозитория предназначены для Linux-окружения
+# (WSL2 + контейнеры). Жёстко фиксируем LF, чтобы core.autocrlf на машине
+# разработчика не подставил CRLF: bash-скрипты с CRLF внутри контейнера
+# падают с "$'\r': command not found" / "exec format error".
+* text=auto eol=lf
+
+*.sh         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.md         text eol=lf
+Dockerfile   text eol=lf
+*.Dockerfile text eol=lf
