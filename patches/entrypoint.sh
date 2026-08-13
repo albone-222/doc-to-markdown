@@ -6,11 +6,13 @@
 #     сборку под cu124 и старее, которая не знает sm_120 (архитектура RTX 50xx).
 #  2. flock вокруг создания .dvenv: оба сервиса монтируют один и тот же каталог
 #     (".:/app") и в оригинале одновременно создают venv, ломая его друг другу.
-#  3. Список моделей вынесен в PULL_MODELS — по умолчанию те же три, что и раньше,
-#     но можно урезать (первый старт качает ~18 ГБ).
+#  3. Список моделей вынесен в PULL_MODELS. llama3.2-vision ИСКЛЮЧЕНА: Ollama 0.30.0
+#     удалила поддержку архитектуры mllama, модель не загружается ни в какой версии
+#     начиная с 1 июня 2026 (ollama/ollama#16490). Вместо неё minicpm-v — та же
+#     стратегия OllamaStrategy, другая модель. Экономит 7.9 ГБ закачки.
 
 TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
-PULL_MODELS="${PULL_MODELS:-llama3.1 llama3.2-vision minicpm-v}"
+PULL_MODELS="${PULL_MODELS:-llama3.1 minicpm-v}"
 
 PYPROJECT_HASH_FILE=".pyproject.hash"
 CURRENT_HASH=$(sha256sum pyproject.toml | awk '{ print $1 }')

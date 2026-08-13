@@ -4,7 +4,10 @@
 #   ./scripts/smoke-test.sh <файл.pdf> [strategy] [model]
 # Примеры:
 #   ./scripts/smoke-test.sh examples/example-mri.pdf easyocr
-#   ./scripts/smoke-test.sh examples/example-mri.pdf llama_vision llama3.2-vision
+#   ./scripts/smoke-test.sh examples/example-mri.pdf minicpm_v minicpm-v
+#
+# ВНИМАНИЕ: стратегия llama_vision нерабочая — Ollama >= 0.30.0 не умеет
+# архитектуру mllama (ollama/ollama#16490). Используйте minicpm_v.
 #
 # Параллельно полезно смотреть в другом окне:  watch -n1 nvidia-smi
 

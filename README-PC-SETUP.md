@@ -135,8 +135,10 @@ docker compose -p text-extract-api-gpu ps
 
 ```bash
 bash ~/tea-pc-setup/scripts/smoke-test.sh examples/example-mri.pdf easyocr
-bash ~/tea-pc-setup/scripts/smoke-test.sh examples/example-mri.pdf llama_vision llama3.2-vision
+bash ~/tea-pc-setup/scripts/smoke-test.sh examples/example-mri.pdf minicpm_v minicpm-v
 ```
+
+> Стратегию `llama_vision` использовать нельзя — см. «Регрессия Ollama» ниже.
 
 В соседнем окне — `watch -n1 nvidia-smi`: на первом прогоне грузится процесс python
 (easyocr/torch), на втором — ollama. Если GPU простаивает, значит работа идёт на CPU.
@@ -195,10 +197,70 @@ rm -f docker-compose.blackwell.yml
 rm -rf .dvenv .pyproject.hash
 ```
 
+## Регрессия Ollama: `llama_vision` не работает
+
+Симптом — задача падает, в логах celery:
+
+```
+llama-server process has terminated: exit status 1:
+error loading model: unknown model architecture: 'mllama'
+```
+
+Причина не в этой сборке и не в GPU. Поддержка архитектуры `mllama` (Llama 3.2 Vision)
+жила в приватном форке llama.cpp внутри Ollama и в апстрим никогда не уходила. При
+переходе на новый движок в **v0.30.0** патчи не перенесли, в mainline llama.cpp этой
+архитектуры не было никогда.
+
+| Версия образа | Дата | `mllama` |
+|---|---|---|
+| `0.24.0` | 14 мая 2026 | работает |
+| **`0.30.0`** | **1 июня 2026** | **удалена** |
+| `0.32.9` | 11 августа 2026 | нет |
+
+[ollama/ollama#16490](https://github.com/ollama/ollama/issues/16490) открыт с 4 июня 2026,
+не исправлен. В `docker-compose.gpu.yml` стоит `image: ollama/ollama` + `pull_policy: always`,
+то есть всегда подтягивается свежая версия — попасть на рабочую невозможно без явного пина.
+
+**Решение в этой сборке:** vision-стратегия — `minicpm_v`. Она использует тот же класс
+`OllamaStrategy`, отличается только моделью:
+
+```yaml
+minicpm_v:
+   class: text_extract_api.extract.strategies.ollama.OllamaStrategy
+   model: minicpm-v
+```
+
+Поэтому переход не требует изменений кода — достаточно передать `strategy=minicpm_v`.
+`llama3.2-vision` убрана из `PULL_MODELS`, это экономит 7.9 ГБ закачки.
+
+Если llama3.2-vision нужна принципиально — закрепите старый образ в
+`docker-compose.blackwell.yml`:
+```yaml
+  ollama:
+    image: ollama/ollama:0.24.0
+    pull_policy: missing
+```
+Ценой трёх месяцев исправлений и новых моделей.
+
+### Сопутствующий баг апстрима
+
+В [strategies/ollama.py](https://github.com/CatchTheTornado/text-extract-api/blob/main/text_extract_api/extract/strategies/ollama.py)
+импортируется только `Client`, а локальная переменная называется `ollama`, поэтому
+`except ollama.ResponseError` сам падает с `AttributeError` и прячет настоящее сообщение
+сервера. `apply-patches.sh` чинит это точечно (`from ollama import Client, ResponseError`
++ `except ResponseError`), идемпотентно и только при точном совпадении строк.
+
 ## Справочник стратегий
 
-Значения параметра `strategy` (из README апстрима): `easyocr`, `llama_vision` (значение
-по умолчанию), `minicpm_v`, `remote`. Языки OCR задаются отдельно: `--language en,ru`.
+| `strategy` | Модель | Статус |
+|---|---|---|
+| `easyocr` | — (PyTorch OCR) | работает |
+| `minicpm_v` | `minicpm-v` | работает, рекомендуемая vision |
+| `docling` | `llama3.1` | работает |
+| `llama_vision` | `llama3.2-vision` | **сломана** (см. выше), значение по умолчанию в апстриме |
+| `remote` | marker-pdf | нужен внешний сервер |
+
+Языки OCR задаются отдельно: `--language en,ru`.
 
 ## Статус проверок
 

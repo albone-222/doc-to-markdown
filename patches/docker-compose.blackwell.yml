@@ -16,7 +16,9 @@ services:
   fastapi_app:
     environment:
       - TORCH_INDEX_URL=${TORCH_INDEX_URL-https://download.pytorch.org/whl/cu128}
-      - PULL_MODELS=${PULL_MODELS-llama3.1 llama3.2-vision minicpm-v}
+      # llama3.2-vision намеренно отсутствует: Ollama >= 0.30.0 не умеет mllama
+      # (ollama/ollama#16490). Vision-стратегия — minicpm_v.
+      - PULL_MODELS=${PULL_MODELS-llama3.1 minicpm-v}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     deploy:
