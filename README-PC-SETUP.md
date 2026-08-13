@@ -202,18 +202,31 @@ rm -rf .dvenv .pyproject.hash
 
 ## Статус проверок
 
-Проверено с моей стороны:
+Подтверждено на живом железе (RTX 5080, Windows + WSL2, Docker Desktop):
+
+- ✅ **Образ собирается, torch видит карту.** Лог `[gpu-check]` при старте:
+  ```
+  [gpu-check] torch=2.11.0+cu128 cuda=12.8 available=True
+  [gpu-check] device=NVIDIA GeForce RTX 5080 capability=(12, 0)
+  ```
+  `capability=(12, 0)` = sm_120. На апстримном `dev.gpu.Dockerfile` (CUDA 11.8 / cu118)
+  здесь была бы ошибка `no kernel image is available for execution on the device`.
+- ✅ pip с индекса cu128 подтянул `torch 2.11.0+cu128` под cp310 и стек `nvidia-*-cu12 12.8.x`
+- ✅ `apply-patches.sh` раскладывает файлы, делает `.orig`-бэкапы и создаёт `.env`
+- ✅ `preflight.sh` корректно различает пропатченный и непропатченный репозиторий
+
+Проверено статически:
 
 - ✅ Теги `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` и `12.8.1-base-ubuntu22.04` существуют в Docker Hub
 - ✅ `docker compose -f docker-compose.gpu.yml -f docker-compose.blackwell.yml config` — слияние корректное, все поля (volume `ollama_data`, `driver: nvidia` у всех трёх сервисов, `TORCH_INDEX_URL`, `OLLAMA_KEEP_ALIVE`) попадают в итоговый конфиг
 - ✅ Синтаксис всех bash-скриптов (`bash -n`)
 - ✅ Имена стратегий сверены с исходным README
 
-Не проверено — нужен реальный запуск на вашей машине:
+Остаётся непроверенным:
 
-- ⚠️ Сборка образа и работа torch cu128 на sm_120 (у меня нет CUDA-железа, только Mac)
-- ⚠️ Поведение `flock` при одновременном старте обоих сервисов
-- ⚠️ Фактическая версия torch, которую подтянет pip с индекса cu128 в момент сборки
+- ⚠️ Поведение `flock` при одновременном старте `fastapi_app` и `celery_worker`
+  (первый запуск шёл по чеклисту — сначала только `fastapi_app`)
+- ⚠️ Фактическая скорость OCR на разных стратегиях
 
-Именно поэтому в патч `entrypoint.sh` встроен блок `[gpu-check]` — он на старте печатает
-версию torch, CUDA и compute capability, так что первый же лог даст однозначный ответ.
+Блок `[gpu-check]` печатает версию torch, CUDA и compute capability при каждом старте —
+если что-то поедет после обновления зависимостей, это станет видно сразу.
