@@ -90,8 +90,34 @@ else
 fi
 
 echo
+echo "=== 6. Статус патчей (шаг 3 чеклиста) ==="
+PATCHED=1
+[ -f docker-compose.blackwell.yml ] || { PATCHED=0; warn "нет docker-compose.blackwell.yml"; }
+[ -f .env ]                        || { PATCHED=0; warn "нет .env (есть только .env.example)"; }
+if [ -f dev.gpu.Dockerfile ] && grep -q 'cu128' dev.gpu.Dockerfile 2>/dev/null; then
+  :
+else
+  PATCHED=0
+  warn "dev.gpu.Dockerfile всё ещё под CUDA 11.8 / cu118 — на RTX 50xx работать не будет"
+fi
+
+if [ "$PATCHED" -eq 1 ]; then
+  ok "Патчи применены, можно собирать"
+else
+  echo
+  echo "  Патчи ещё НЕ применены. preflight.sh только диагностирует и ничего не меняет."
+  echo "  Выполните:  bash <каталог-материалов>/scripts/apply-patches.sh \$(pwd)"
+  echo "  Команда 'docker compose -f docker-compose.gpu.yml -f docker-compose.blackwell.yml'"
+  echo "  до этого работать не будет — второго файла просто нет на диске."
+fi
+
+echo
 if [ "$FAIL" -eq 0 ]; then
-  echo "Готово: препятствий не найдено."
+  if [ "$PATCHED" -eq 1 ]; then
+    echo "Готово: препятствий не найдено, окружение готово к сборке."
+  else
+    echo "Окружение в порядке, но сначала примените патчи (шаг 3)."
+  fi
 else
   echo "Есть блокирующие проблемы — устраните их до сборки."
 fi

@@ -68,12 +68,24 @@ bash ~/tea-pc-setup/scripts/preflight.sh
 ```
 
 Проверяет: версию драйвера, доступность docker/compose, реальный проброс GPU в контейнер,
-свободное место (нужно ≥45 ГБ), расположение каталога и переводы строк.
+свободное место (нужно ≥45 ГБ), расположение каталога, переводы строк и применены ли патчи.
 
-## Шаг 3. Патчи
+> **Скрипт ничего не меняет — только диагностирует.** Успешный preflight не означает,
+> что репозиторий готов к сборке: патчи накладывает отдельный скрипт из шага 3.
+
+## Шаг 3. Патчи (обязательно)
 
 ```bash
 bash ~/tea-pc-setup/scripts/apply-patches.sh ~/text-extract-api
+```
+
+Без этого шага файла `docker-compose.blackwell.yml` в репозитории нет, и команда запуска
+из шага 4 упадёт с `no such file or directory`. Проверить результат:
+
+```bash
+cd ~/text-extract-api
+ls -l docker-compose.blackwell.yml .env dev.gpu.Dockerfile.orig
+head -3 dev.gpu.Dockerfile     # первая строка: "# ПАТЧ для RTX 5080 (Blackwell, sm_120)"
 ```
 
 Оригиналы сохраняются как `dev.gpu.Dockerfile.orig` и `scripts/entrypoint.sh.orig`.
