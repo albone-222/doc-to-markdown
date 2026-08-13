@@ -1,0 +1,52 @@
+# Override-слой поверх docker-compose.gpu.yml.
+# Применять так:
+#   docker compose -f docker-compose.gpu.yml -f docker-compose.blackwell.yml \
+#     -p text-extract-api-gpu up --build
+#
+# Что добавляет:
+#  1. Постоянный volume для Ollama. В оригинале его нет — при каждом
+#     "down"/пересоздании контейнера ~18 ГБ моделей качаются заново.
+#  2. Явный driver: nvidia для fastapi_app и celery_worker (в оригинале указан
+#     только capabilities, без драйвера).
+#  3. TORCH_INDEX_URL — чтобы entrypoint ставил torch под нужный CUDA.
+#  4. OLLAMA_KEEP_ALIVE — на 16 ГБ VRAM держать модель вечно вредно: llama3.1
+#     и llama3.2-vision вместе занимают ~12.8 ГБ и мешают друг другу.
+
+services:
+  fastapi_app:
+    environment:
+      - TORCH_INDEX_URL=${TORCH_INDEX_URL-https://download.pytorch.org/whl/cu128}
+      - PULL_MODELS=${PULL_MODELS-llama3.1 llama3.2-vision minicpm-v}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  celery_worker:
+    environment:
+      - TORCH_INDEX_URL=${TORCH_INDEX_URL-https://download.pytorch.org/whl/cu128}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ollama:
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE-5m}
+
+volumes:
+  ollama_data:
